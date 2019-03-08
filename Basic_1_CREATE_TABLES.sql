@@ -22,21 +22,25 @@ CREATE TABLE ProcLogExec
 (
 	logExecID INT IDENTITY(1,1),
 	procID INT NOT NULL,
+	startPointID INT,
 
 	startDate DATETIME2(0),
 	endDate DATETIME2(0),
 
 	execState varchar(10) NOT NULL,
+
+	execStatus char(1) NOT NULL,
 	
 	PRIMARY KEY (logExecID),
+	FOREIGN KEY (startPointID) REFERENCES ProcLogExec (logExecID),
 	FOREIGN KEY (procID) REFERENCES ProcAvailable (procID)
 ); 
 
 CREATE TABLE ProcLogError
 (
 	logErrorID INT IDENTITY(1,1),
-	logExecID INT NOT NULL,
-	procID INT NOT NULL,
+	logExecID INT,
+	procID INT,
 
 	errorMessage varchar(2000) NOT NULL,
 

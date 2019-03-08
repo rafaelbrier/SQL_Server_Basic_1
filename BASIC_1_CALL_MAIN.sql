@@ -3,5 +3,5 @@ GO
 
 begin
 EXECUTE mainprocedures.sp_Main 
-	@procedureName = 'dbo.sp_ProcedureSegunda'
+	@procedureName = 'dbo.sp_procedureTerceira'
 end

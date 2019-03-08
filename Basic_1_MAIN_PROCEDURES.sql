@@ -15,7 +15,9 @@ BEGIN
 	SET NOCOUNT ON
 
 	DECLARE @procID INT,
-			@logExecID INT
+			@logExecStartPointID INT = NULL,
+			@logExecID INT,
+			@_errMessage NVARCHAR(2000)
 
 	/*
 	Verificar se existe o procedimento na tabela (CadastroProcedures)
@@ -26,6 +28,14 @@ BEGIN
 					@procID = @procID OUTPUT;
 	END TRY
 	BEGIN CATCH
+		/*
+		Se o Procedimento gera Error, loga-se na tabela ProcLogError e retorna
+		*/
+		SET @_errMessage = CAST(ERROR_NUMBER() AS VARCHAR) + ', ' + ERROR_MESSAGE();
+		EXECUTE mainprocedures.sp_LogError 
+					@procID = @procID,
+					@logExecID = @logExecID,
+					@errMessage = @_errMessage;
 		THROW
 	END CATCH
 		
@@ -35,12 +45,24 @@ BEGIN
 	BEGIN TRY
 		EXECUTE mainprocedures.sp_LogExec
 					@procID = @procID,
+					@startPointID = NULL,
 					@initOrEnd = 0,
+					@execStatus = 0,
 					@logExecID = @logExecID OUTPUT;		
 	END TRY
 	BEGIN CATCH
+		/*
+		Se o Procedimento gera Error, loga-se na tabela ProcLogError e retorna
+		*/
+		SET @_errMessage = CAST(ERROR_NUMBER() AS VARCHAR) + ', ' + ERROR_MESSAGE();
+		EXECUTE mainprocedures.sp_LogError 
+					@procID = @procID,
+					@logExecID = @logExecID,
+					@errMessage = @_errMessage;
 		THROW
 	END CATCH
+
+	SET @logExecStartPointID = @logExecID;
 
 	/*
 	Executa o procedimento @procedureExecName
@@ -52,10 +74,19 @@ BEGIN
 	END TRY
 	BEGIN CATCH
 		/*
+		Se o Procedimento gera Error, loga-se na tabela ProcLogExec a finalização com ERRO
+		*/
+		EXECUTE mainprocedures.sp_LogExec
+					@procID = @procID,
+					@startPointID = @logExecStartPointID,
+					@initOrEnd = 1,
+					@execStatus = 1,
+					@logExecID = @logExecID OUTPUT;		
+		/*
 		Se o Procedimento gera Error, loga-se na tabela ProcLogError e retorna
 		*/
 		PRINT N'O procedimento (' + @procedureName + ') retornou um erro: ';
-		DECLARE @_errMessage NVARCHAR(2000) = CAST(ERROR_NUMBER() AS VARCHAR) + ', ' + ERROR_MESSAGE();
+		SET @_errMessage = CAST(ERROR_NUMBER() AS VARCHAR) + ', ' + ERROR_MESSAGE();
 		EXECUTE mainprocedures.sp_LogError 
 					@procID = @procID,
 					@logExecID = @logExecID,
@@ -72,10 +103,20 @@ BEGIN
 	BEGIN TRY
 		EXECUTE mainprocedures.sp_LogExec
 					@procID = @procID,
+					@startPointID = @logExecStartPointID,
 					@initOrEnd = 1,
+					@execStatus = 0,
 					@logExecID = @logExecID OUTPUT;		
 	END TRY
 	BEGIN CATCH
+		/*
+		Se o Procedimento gera Error, loga-se na tabela ProcLogError e retorna
+		*/
+		SET @_errMessage = CAST(ERROR_NUMBER() AS VARCHAR) + ', ' + ERROR_MESSAGE();
+		EXECUTE mainprocedures.sp_LogError 
+					@procID = @procID,
+					@logExecID = @logExecID,
+					@errMessage = @_errMessage;
 		THROW
 	END CATCH
 
@@ -109,17 +150,21 @@ GO
 ------------------------------------------------------------------------------
 
 /*
---initOrEnd = 0 (Início) ; initOrEnd = 1 (Fim)
+--@initOrEnd = 0 (Início) ; initOrEnd = 1 (Fim)
+--@execStatus = 0 (S - Sucesso) ; initOrEnd = 1 (E - Error)
 */
 CREATE OR ALTER PROCEDURE mainprocedures.sp_LogExec 
 	@procID INT,
-	@initOrEnd INT,
+	@startPointID INT,
+	@initOrEnd BIT,
+	@execStatus BIT,
 	@logExecID INT OUTPUT
 AS
 BEGIN
 	DECLARE @initOrEndString VARCHAR(10),
 			@startDate DATETIME,
 			@endDate DATETIME,
+			@sucessOrError CHAR(1),
 			@thisProcName NVARCHAR(100) = OBJECT_SCHEMA_NAME(@@PROCID) + '.' + OBJECT_NAME(@@PROCID);
 
 	DECLARE @IdentityOutput table ( ID int );
@@ -137,10 +182,18 @@ BEGIN
 			SET @endDate = GETDATE();
 		END
 
-	INSERT dbo.ProcLogExec (procID, startDate, endDate, execState)
+	IF @execStatus = 0
+		SET @sucessOrError = 'S';
+	ELSE IF @execStatus = 1
+		SET @sucessOrError = 'E';
+
+	INSERT dbo.ProcLogExec (procID, startPointID, startDate, endDate, execState, execStatus)
 		OUTPUT INSERTED.logExecID
 			 INTO @IdentityOutput
-				VALUES (@procID, @startDate, @endDate, @initOrEndString);
+				VALUES (@procID, @startPointID, @startDate, @endDate, @initOrEndString, @sucessOrError);
+
+	IF @@ERROR <> 0
+		RAISERROR('Erro ao logar o início do procedimento.', 16, 1);
 
 	SET @logExecID = (select ID from @IdentityOutput);
 END
@@ -159,6 +212,9 @@ BEGIN
 	
 	INSERT INTO dbo.ProcLogError (procID, logExecID, errorMessage, createdAt)
 				VALUES (@procID, @logExecID, @errMessage, GETDATE());
+
+	IF @@ERROR <> 0
+		RAISERROR('Erro ao logar o erro do procedimento.', 16, 1);
 END
 GO
 
