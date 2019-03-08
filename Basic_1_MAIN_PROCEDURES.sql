@@ -47,7 +47,7 @@ BEGIN
 	BEGIN TRY
 		EXECUTE mainprocedures.sp_LogExec
 					@procID = @procID,
-					@startPointID = @procID,
+					@startPointID = NULL,
 					@initOrEnd = 0,
 					@execStatus = 0,
 					@logExecID = @logExecID OUTPUT;		
@@ -130,8 +130,9 @@ END
 GO	
 
 	
-----------------------------------------------------------------------------	
-
+/*
+Procedimento que verifica no Banco se o mesmo está cadastro no sistema (Tabela - dbo.ProcAvailable)
+*/
 CREATE OR ALTER PROCEDURE mainprocedures.sp_CheckCadastro 
 	@procedureName NVARCHAR(100),
 	@procID INT OUTPUT
@@ -150,10 +151,14 @@ BEGIN
 		RAISERROR (N'(%s) Não existe procedimento com nome: %s.', 16, 1, @thisProcName, @procedureName);
 END	
 GO
+/*
+----------------------------------------------------------------------
+*/
 
-------------------------------------------------------------------------------
 
 /*
+Procedimento que loga no banco o início e fim das execuções dos procedimentos (Tabela - dbo.ProcLogExec)
+
 --@initOrEnd = 0 (Início) ; initOrEnd = 1 (Fim)
 --@execStatus = 0 (S - Sucesso) ; initOrEnd = 1 (E - Error)
 */
@@ -194,16 +199,32 @@ BEGIN
 	INSERT dbo.ProcLogExec (procID, startPointID, startDate, endDate, execState, execStatus)
 		OUTPUT INSERTED.logExecID
 			 INTO @IdentityOutput
-				VALUES (@procID, @startPointID, @startDate, @endDate, @initOrEndString, @sucessOrError);
-
+				VALUES (@procID, NULL, @startDate, @endDate, @initOrEndString, @sucessOrError);
 	IF @@ERROR <> 0
 		RAISERROR('Erro ao logar o início do procedimento.', 16, 1);
 
 	SET @logExecID = (select ID from @IdentityOutput);
+
+	IF @startPointID IS NULL
+		SET @startPointID = @logExecID;
+
+	UPDATE dbo.ProcLogExec
+				SET  startPointID = @startPointID 
+				WHERE logExecID = @logExecID;
+	IF @@ERROR <> 0
+		RAISERROR('Erro ao logar o início do procedimento.', 16, 1);
+
 END
 GO
+/*
+----------------------------------------------------------------------
+*/
 
 
+
+/*
+Procedimento que loga no banco os erros ocorridos durante a execução da função Main (Tabela - dbo.ProcLogError)
+*/
 CREATE OR ALTER PROCEDURE mainprocedures.sp_LogError
 	@procID INT,
 	@logExecID INT,
@@ -221,6 +242,9 @@ BEGIN
 		RAISERROR('Erro ao logar o erro do procedimento.', 16, 1);
 END
 GO
+/*
+----------------------------------------------------------------------
+*/
 
 
 ------------------------------------------------------------------------------
