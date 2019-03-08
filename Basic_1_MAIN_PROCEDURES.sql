@@ -16,7 +16,7 @@ BEGIN
 
 	DECLARE @procID INT,
 			@logExecStartPointID INT = NULL,
-			@logExecID INT,
+			@logExecID INT = NULL,
 			@_errMessage NVARCHAR(2000)
 
 	/*
@@ -28,9 +28,7 @@ BEGIN
 					@procID = @procID OUTPUT;
 	END TRY
 	BEGIN CATCH
-		/*
-		Se o Procedimento gera Error, loga-se na tabela ProcLogError e retorna
-		*/
+		--Se o Procedimento gera Error, loga-se na tabela ProcLogError e retorna		
 		SET @_errMessage = CAST(ERROR_NUMBER() AS VARCHAR) + ', ' + ERROR_MESSAGE();
 		EXECUTE mainprocedures.sp_LogError 
 					@procID = @procID,
@@ -38,6 +36,10 @@ BEGIN
 					@errMessage = @_errMessage;
 		THROW
 	END CATCH
+	/*
+	----------------------------------------------------------------------
+	*/
+
 		
 	/*
 	Loga na tabela de Logs (LogProcedures) o início da execução do procedimento
@@ -45,15 +47,13 @@ BEGIN
 	BEGIN TRY
 		EXECUTE mainprocedures.sp_LogExec
 					@procID = @procID,
-					@startPointID = NULL,
+					@startPointID = @procID,
 					@initOrEnd = 0,
 					@execStatus = 0,
 					@logExecID = @logExecID OUTPUT;		
 	END TRY
 	BEGIN CATCH
-		/*
-		Se o Procedimento gera Error, loga-se na tabela ProcLogError e retorna
-		*/
+		--Se o Procedimento gera Error, loga-se na tabela ProcLogError e retorna
 		SET @_errMessage = CAST(ERROR_NUMBER() AS VARCHAR) + ', ' + ERROR_MESSAGE();
 		EXECUTE mainprocedures.sp_LogError 
 					@procID = @procID,
@@ -63,28 +63,28 @@ BEGIN
 	END CATCH
 
 	SET @logExecStartPointID = @logExecID;
+	/*
+	----------------------------------------------------------------------
+	*/
+
+	PRINT N'Iniciando Procedimento...' + CHAR(10);
 
 	/*
 	Executa o procedimento @procedureExecName
 	*/
-	PRINT N'Iniciando Procedimento...' + CHAR(10);
-
 	BEGIN TRY
 		EXECUTE @procedureName
 	END TRY
 	BEGIN CATCH
-		/*
-		Se o Procedimento gera Error, loga-se na tabela ProcLogExec a finalização com ERRO
-		*/
+		--Se o Procedimento gera Error, loga-se na tabela ProcLogExec a finalização com ERRO
 		EXECUTE mainprocedures.sp_LogExec
 					@procID = @procID,
 					@startPointID = @logExecStartPointID,
 					@initOrEnd = 1,
-					@execStatus = 1,
+					@execStatus = 1, --execStatus 1 = error
 					@logExecID = @logExecID OUTPUT;		
-		/*
-		Se o Procedimento gera Error, loga-se na tabela ProcLogError e retorna
-		*/
+		
+		--Loga-se também na tabela ProcLogError e retorna
 		PRINT N'O procedimento (' + @procedureName + ') retornou um erro: ';
 		SET @_errMessage = CAST(ERROR_NUMBER() AS VARCHAR) + ', ' + ERROR_MESSAGE();
 		EXECUTE mainprocedures.sp_LogError 
@@ -94,6 +94,9 @@ BEGIN
 		
 		THROW
 	END CATCH
+	/*
+	----------------------------------------------------------------------
+	*/
 
 	PRINT CHAR(10) + N'Finalizando...';
 
@@ -109,9 +112,7 @@ BEGIN
 					@logExecID = @logExecID OUTPUT;		
 	END TRY
 	BEGIN CATCH
-		/*
-		Se o Procedimento gera Error, loga-se na tabela ProcLogError e retorna
-		*/
+		--Se o Procedimento gera Error, loga-se na tabela ProcLogError e retorna
 		SET @_errMessage = CAST(ERROR_NUMBER() AS VARCHAR) + ', ' + ERROR_MESSAGE();
 		EXECUTE mainprocedures.sp_LogError 
 					@procID = @procID,
@@ -119,6 +120,9 @@ BEGIN
 					@errMessage = @_errMessage;
 		THROW
 	END CATCH
+	/*
+	----------------------------------------------------------------------
+	*/
 
 	PRINT CHAR(10) + N'Procedimento (' + @procedureName	+ ') executado com sucesso.';
 
