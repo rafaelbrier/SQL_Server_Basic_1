@@ -194,7 +194,7 @@ BEGIN
 	ELSE IF @initOrEnd = 1
 		BEGIN
 			SET @initOrEndString = 'Fim';
-			SET @startDate = NULL;
+			SET @startDate = (SELECT TOP 1 startDate FROM dbo.ProcLogExec AS ple WHERE ple.[name] = @procedureName );
 			SET @endDate = GETDATE();
 		END
 

@@ -52,6 +52,7 @@ CREATE TABLE ProcLogError
 	FOREIGN KEY (procID) REFERENCES ProcAvailable (procID)
 ); 
 
+GO
 
 
 

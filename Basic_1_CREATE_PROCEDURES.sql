@@ -1,7 +1,7 @@
 USE [DB_Testes]
 GO
 
-CREATE OR ALTER PROCEDURE sp_Procedure_1
+CREATE OR ALTER PROCEDURE dbo.sp_Procedure_1
 AS
 PRINT N'************************************' + CHAR(10) + 
 	  N'Primeiro procedimento executado!' + CHAR(10) + 
@@ -80,7 +80,7 @@ AS
 	  
 	 SET  @i = @i + 1;
 END 
-
+s
 GO
 CREATE OR ALTER PROCEDURE sp_Procedure_8
 AS
