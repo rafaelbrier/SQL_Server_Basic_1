@@ -17,6 +17,7 @@ BEGIN
 	DECLARE @procID INT,
 			@logExecStartPointID INT = NULL,
 			@logExecID INT = NULL,
+			@elapsedTime INT,
 			@_errMessage NVARCHAR(2000)
 
 	/*
@@ -72,8 +73,14 @@ BEGIN
 	/*
 	Executa o procedimento @procedureExecName
 	*/
+	DECLARE @tstart DATETIME;
+	DECLARE @tend DATETIME;
 	BEGIN TRY
+		SET @tstart = GETDATE();
 		EXECUTE @procedureName
+		SET @tend = GETDATE();
+		SET @elapsedTime = DATEDIFF(millisecond,@tstart,@tend);
+		PRINT 'Tempo de execucao: ' + CAST(@elapsedTime as VARCHAR) + 'ms';
 	END TRY
 	BEGIN CATCH
 		--Se o Procedimento gera Error, loga-se na tabela ProcLogExec a finalização com ERRO
@@ -196,24 +203,15 @@ BEGIN
 	ELSE IF @execStatus = 1
 		SET @sucessOrError = 'E';
 
-	INSERT dbo.ProcLogExec (procID, startPointID, startDate, endDate, execState, execStatus)
+	INSERT dbo.ProcLogExec (procID, startDate, endDate, execStatus)
 		OUTPUT INSERTED.logExecID
 			 INTO @IdentityOutput
-				VALUES (@procID, NULL, @startDate, @endDate, @initOrEndString, @sucessOrError);
+				VALUES (@procID, @startDate, @endDate, @sucessOrError);
 	IF @@ERROR <> 0
 		RAISERROR('Erro ao logar o início do procedimento.', 16, 1);
 
 	SET @logExecID = (select ID from @IdentityOutput);
-
-	IF @startPointID IS NULL
-		SET @startPointID = @logExecID;
-
-	UPDATE dbo.ProcLogExec
-				SET  startPointID = @startPointID 
-				WHERE logExecID = @logExecID;
-	IF @@ERROR <> 0
-		RAISERROR('Erro ao logar o início do procedimento.', 16, 1);
-
+	
 END
 GO
 /*
@@ -235,8 +233,8 @@ BEGIN
 			@thisProcName NVARCHAR(100) = OBJECT_SCHEMA_NAME(@@PROCID) + '.' + OBJECT_NAME(@@PROCID),
 			@printMessage NVARCHAR(10);
 	
-	INSERT INTO dbo.ProcLogError (procID, logExecID, errorMessage, createdAt)
-				VALUES (@procID, @logExecID, @errMessage, GETDATE());
+	INSERT INTO dbo.ProcLogError (procID, logExecID, errorMessage, errorLevel, createdAt)
+				VALUES (@procID, @logExecID, @errMessage, 10, GETDATE());
 
 	IF @@ERROR <> 0
 		RAISERROR('Erro ao logar o erro do procedimento.', 16, 1);

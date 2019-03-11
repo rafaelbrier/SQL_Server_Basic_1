@@ -11,6 +11,7 @@ CREATE TABLE ProcAvailable
 	name varchar(200) NOT NULL UNIQUE,
 	schedulePeriod nvarchar(10) NOT NULL,
 	scheduleTime TIME(0) NOT NULL,
+	estimatedRunTime TIME(3),
 	createdAt DATETIME2(0) NOT NULL,
 
 	PRIMARY KEY (procID)
