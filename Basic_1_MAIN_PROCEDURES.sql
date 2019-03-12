@@ -214,6 +214,7 @@ Procedimento que loga no banco o início e fim das execuções dos procedimentos (T
 
 --@createOrUpdate = 0 (create) ; @createOrUpdate = 1 (update)
 --@execStatus = 0 (S - Sucesso) ; @execStatus = -1 (E - Error); @execStatus = 1 (R - Em Execução); @execStatus = 2 (F - Finalizado com Erro);
+ @execStatus = 3 (T - Passou do tempo médio)
 */
 CREATE OR ALTER PROCEDURE mainprocedures.sp_LogExec 
 	@procID INT,
@@ -247,6 +248,8 @@ BEGIN
 		SET @execChar = 'R';
 	ELSE IF @execStatus = 2
 		SET @execChar = 'F';
+	ELSE IF @execStatus = 3
+		SET @execChar = 'T';
 	ELSE IF @execStatus = -1
 		SET @execChar = 'E';
 

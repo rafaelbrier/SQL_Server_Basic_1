@@ -80,13 +80,13 @@ AS
 	  
 	 SET  @i = @i + 1;
 END 
-s
+
 GO
 CREATE OR ALTER PROCEDURE sp_Procedure_8
 AS
 	DECLARE @i INT = 1;
 
-	WHILE (@i <= 100)
+	WHILE (@i <= 300)
 	 BEGIN
 	  WAITFOR DELAY '00:00:01';
 	  
