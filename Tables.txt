@@ -1,0 +1,11 @@
+Tabela Procedimentos
+
+procId (PK) | name | schedulePeriod | scheduleTime | estimatedRunTime | lastExecution | createdAt
+
+Tabela Log De Execução
+
+logExecId (PK) | procId (FK) | startDate | endDate | executionTime | execStatus
+
+Tabela Log De Erros
+
+logErrorId (PK) | procId (FK) | logExecId (FK) | errorCode | errorMessage | createdAt
