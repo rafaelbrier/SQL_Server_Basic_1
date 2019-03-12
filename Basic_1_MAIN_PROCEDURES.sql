@@ -59,7 +59,7 @@ BEGIN
 					@startPointID = NULL,
 					@executionTime = @elapsedTime,
 					@createOrUpdate = 0,
-					@execStatus = 0,
+					@execStatus = 1, -- 1 = Em Execução
 					@logExecID = @logExecID OUTPUT;		
 	END TRY
 	BEGIN CATCH
@@ -90,7 +90,33 @@ BEGIN
 		SET @tstart = GETDATE();
 		EXECUTE @procedureName
 		SET @tend = GETDATE();
+		
 		SET @elapsedTime = DATEDIFF(millisecond,@tstart,@tend);
+		
+		DECLARE @avgTime INT;
+		
+		/* SALVA A MÉDIA DOS TEMPOS DE EXECUÇÃO*/
+		BEGIN TRY
+			SET @avgTime =  (SELECT TOP 10 AVG(executionTime) as avgExecTime FROM dbo.ProcLogExec AS ple
+							WHERE (ple.executionTime IS NOT NULL AND ple.procId = @procID))
+
+			UPDATE [dbo].[ProcAvailable]
+				   SET [estimatedRunTime] = @avgTime,
+					   [lastExecution] = GETDATE()
+                   WHERE procId = @procID;
+
+		END TRY
+		BEGIN CATCH
+			SET @_errCode = ERROR_NUMBER();
+			SET @_errMessage = ERROR_MESSAGE();
+			EXECUTE mainprocedures.sp_LogError 
+						@procID = @procID,
+						@logExecID = @logExecID,
+						@errCode =  @_errCode,
+						@errMessage = @_errMessage;
+		
+			THROW
+		END CATCH
 
 		PRINT 'Tempo de execucao: ' + CAST(@elapsedTime as VARCHAR) + 'ms';
 
@@ -103,7 +129,7 @@ BEGIN
 					@startPointID = @logExecStartPointID,
 					@executionTime = @elapsedTime,
 					@createOrUpdate = 1,
-					@execStatus = -1, --execStatus -1 = error
+					@execStatus = -1, --execStatus 9 = error
 					@logExecID = @logExecID OUTPUT;		
 		
 		--Loga-se também na tabela ProcLogError e retorna
@@ -194,7 +220,7 @@ CREATE OR ALTER PROCEDURE mainprocedures.sp_LogExec
 	@startPointID INT,
 	@executionTime INT,
 	@createOrUpdate BIT,
-	@execStatus BIT,
+	@execStatus INT,
 	@logExecID INT OUTPUT
 AS
 BEGIN
@@ -217,15 +243,12 @@ BEGIN
 
 	IF @execStatus = 0
 		SET @execChar = 'S';
-	ELSE IF @execStatus = -1
-		SET @execChar = 'E';
 	ELSE IF @execStatus = 1
 		SET @execChar = 'R';
 	ELSE IF @execStatus = 2
 		SET @execChar = 'F';
-
-
-	PRINT @startPointID
+	ELSE IF @execStatus = -1
+		SET @execChar = 'E';
 
 	IF @createOrUpdate = 0
 		BEGIN
